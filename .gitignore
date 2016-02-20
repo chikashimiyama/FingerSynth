@@ -1,0 +1,16 @@
+.settings
+gen
+obj
+libs
+jni
+settings.gradle
+.project
+build.gradle
+build.xml
+config.make
+ic_launcher-web.png
+Makefile
+proguard-project.txt
+project.properties
+.classpath
+.cproject
