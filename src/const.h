@@ -11,4 +11,6 @@ const float kCircleSize = 100;
 const float kCentroidSize = 150;
 const float kNormalFontSize = 30;
 
-
+const int kSampleRate = 44100;
+const int kBlockSize = 512;
+const int kTicksPerBuffer = 8;

@@ -4,31 +4,62 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	int ticksPerBuffer = 8;
-	ofSetBackgroundColor(0,0,0,255);
-	ofSoundStreamSetup(2,0, this, 44100, 512, 3);
-	if(!pd.init(2, 0, 44100, ticksPerBuffer, false)) {
+	ofSetBackgroundColor(0,0,10,255);
+	ofSoundStreamSetup(2,0, this, kSampleRate, kBlockSize, 3);
+	if(!pd.init(2, 0, 44100, kTicksPerBuffer, false)) {
 		OF_EXIT_APP(1);
 	}
-	for(int i = 0; i < 5; i++){
+	for(int i = 0; i < kMaxTouch; i++){
 		std::string index = ofToString(i+1);
 		touches.push_back(Touch(index));
 	}
 
+
+	pd.subscribe("toOF");
+	pd.addReceiver(*this);
+
 	pd.start();
-	Patch patch = pd.openPatch("synth.pd");
+	Patch patch = pd.openPatch("pd/synth.pd");
 
 	ofSetCircleResolution(kCircleResolution);
 	ofSetLineWidth(kNormalLineWidth);
-	myfont.load("frabk.ttf", kNormalFontSize);
+	myfont.load("verdana.ttf", kNormalFontSize);
 
+}
+
+void ofApp::print(const std::string& message) {
+	ofLog() << message;
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
+	int previousNumTouches = numTouches;
+	updateStatistics();
+	List list;
+	if(previousNumTouches == 0 && numTouches > 0){
+		pd.sendMessage("fromOF", "start", list );
+	}else if(previousNumTouches > 0 && numTouches == 0){
+		pd.sendMessage("fromOF", "stop", list );
 
+	}
 }
 
+void ofApp::updateStatistics(){
+
+	float x = 0, y = 0;
+	int i = 0;
+	for(auto touch : touches){
+		if(touch.status){
+			x += touch.point.x;
+			y += touch.point.y;
+			i++;
+		}
+	}
+	x /= (float)i;
+	y /= (float)i;
+	centroid = ofPoint(x,y);
+	numTouches = i;
+}
 //--------------------------------------------------------------
 void ofApp::draw(){
 	drawTouches();
@@ -50,32 +81,15 @@ void ofApp::drawTouches(){
 
 
 void ofApp::drawCentroid(){
-	for(int i = 0;i < 5; i++){
-		auto touch = touches[i];
-	}
+	ofDrawCircle(centroid, kCentroidSize);
 }
 
 void ofApp::drawNetwork(){
 	ofPolyline polyline;
-	int i = 0;
-	float x = 0, y = 0;
-	for(auto touch : touches){
-		if(touch.status){
-			x += touch.point.x;
-			y += touch.point.y;
-			i++;
-		}
-	}
-	if(i < 2) return;
-
-	x /= (float)i;
-	y /= (float)i;
-	ofDrawCircle(x, y, kCentroidSize);
 	ofSetLineWidth(kThinLineWidth);
-
 	for(auto touch : touches){
 		if(touch.status){
-			ofDrawLine(ofPoint(x,y), touch.point);
+			ofDrawLine(centroid, touch.point);
 		}
 	}
 }
@@ -100,18 +114,31 @@ void ofApp::touchDown(int x, int y, int id){
 	if(id >= kMaxTouch) return;
 	touches[id].status = true;
 	touches[id].point = ofPoint(x,y);
+	sendTouchMessage(x,y,id, 1);
 }
 
 //--------------------------------------------------------------
 void ofApp::touchMoved(int x, int y, int id){
 	if(id >= kMaxTouch) return;
 	touches[id].point = ofPoint(x,y);
+	sendTouchMessage(x,y,id, 1);
 }
 
 //--------------------------------------------------------------
 void ofApp::touchUp(int x, int y, int id){
 	if(id >=kMaxTouch ) return;
 	touches[id].status = false;
+	sendTouchMessage(x,y,id, 0);
+}
+
+void ofApp::sendTouchMessage(int x, int y, int id, int status){
+	List list;
+	ofPoint size = ofGetWindowSize();
+	list.addFloat(id);
+	list.addFloat((float)x / size.x);
+	list.addFloat((float)y / size.y);
+	list.addFloat((float)status);
+	pd.sendMessage("fromOF", "touches", list);
 }
 
 //--------------------------------------------------------------

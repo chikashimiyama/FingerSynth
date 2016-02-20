@@ -17,17 +17,23 @@ public:
 	bool status;
 };
 
-class ofApp : public ofxAndroidApp{
+class ofApp : public ofxAndroidApp,  public PdReceiver{
 	protected:
 		std::vector<Touch> touches;
+		ofPoint centroid;
+		int numTouches;
 
 		void drawTouches();
 		void drawCentroid();
 		void drawNetwork();
+
+		void sendTouchMessage(int x, int y, int id, int status);
+		void print(const std::string& message);
 	public:
 		
 		void setup();
 		void update();
+		void updateStatistics();
 		void draw();
 		
 
