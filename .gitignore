@@ -14,3 +14,11 @@ proguard-project.txt
 project.properties
 .classpath
 .cproject
+bin/dexedLibs
+bin/classes
+bin/androidEmptyExample.apk
+bin/AndroidManifest.xml
+bin/classes.dex
+bin/jarlist.cache
+bin/R.txt
+bin/resources.ap_
