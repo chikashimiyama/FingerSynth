@@ -4,7 +4,7 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	ofSetBackgroundColor(0,0,10,255);
+	ofSetBackgroundColor(ofColor::black);
 	ofSoundStreamSetup(2,0, this, kSampleRate, kBlockSize, 3);
 	if(!pd.init(2, 0, 44100, kTicksPerBuffer, false)) {
 		OF_EXIT_APP(1);
@@ -14,11 +14,11 @@ void ofApp::setup(){
 		touches.push_back(Touch());
 	}
 
-	tags.push_back(Tag("1","carrier","freq","waveshape", "-","-", ofColor::lightBlue));
-	tags.push_back(Tag("2","modulartor1","freq","waveshape", "-","index", ofColor::orange));
-	tags.push_back(Tag("3","modulartor2","freq","waveshape", "-","index", ofColor::lightGreen));
-	tags.push_back(Tag("4","noise-gen","freq","waveshape", "-","-", ofColor::lightCyan));
-	tags.push_back(Tag("5","pulser","freq","waveshape", "-","-", ofColor::lightPink));
+	tags.push_back(Tag("1","carrier","X:freq","Y:waveshape", "-","-", ofColor::lightBlue));
+	tags.push_back(Tag("2","modulartor1","X:freq","Y:waveshape", "-","Dist:index", ofColor::orange));
+	tags.push_back(Tag("3","modulartor2","X:freq","Y:waveshape", "-","Dist:index", ofColor::lightGreen));
+	tags.push_back(Tag("4","random-gen","X:freq","Y:waveshape", "-","-", ofColor::lightCyan));
+	tags.push_back(Tag("5","pulser","x:freq","Y:waveshape", "-","-", ofColor::lightPink));
 
 
 	pd.subscribe("toOF");
@@ -39,16 +39,9 @@ void ofApp::print(const std::string& message) {
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	int previousNumTouches = numTouches;
 	updateStatistics();
-	List list;
-	if(previousNumTouches == 0 && numTouches > 0){
-		pd.sendMessage("fromOF", "start", list );
-	}else if(previousNumTouches > 0 && numTouches == 0){
-		pd.sendMessage("fromOF", "stop", list );
 
-	}
-
+	sendTouchMessage();
 	updateArray();
 }
 
@@ -94,7 +87,7 @@ void ofApp::draw(){
 }
 
 void ofApp::drawTouches(){
-	ofSetColor(255, 255, 255, 255);
+	ofSetColor(ofColor::white);
 
 	ofSetLineWidth(kNormalLineWidth);
 
@@ -102,20 +95,28 @@ void ofApp::drawTouches(){
 		auto touch = touches[i];
 		if (touch.status){
 			ofNoFill();
-			myfont.drawString(tags[i].number, touch.point.x, touch.point.y-kCaptionOffset);
-			myfont.drawString(tags[i].function,touch.point.x, touch.point.y+kCaptionOffset);
+			drawCaptions(i, touch.point);
 			ofDrawCircle(touch.point, kCircleSize);
 		}
 	}
 }
 
+void ofApp::drawCaptions(int index, ofPoint center){
+
+	myfont.drawString(tags[index].number + " : " + tags[index].function, center.x -kCaptionOffset, center.y-kCaptionOffset);
+	myfont.drawString(tags[index].xmap, center.x + kCaptionOffset, center.y);
+	myfont.drawString(tags[index].ymap, center.x, center.y + kCaptionOffset);
+}
+
 void ofApp::drawDistances(){
-	ofSetColor(255, 255, 255, 255);
+	ofSetColor(ofColor::white);
 	ofSetLineWidth(kStemLineWidth);
 	for(int i = 1;i < kMaxTouch; i++){
 		auto touch = touches[i];
 		if (touch.status){
+			ofPoint middle((touch.point.x + touches[0].point.x)/2.0,  (touch.point.y + touches[0].point.y)/2.0 );
 			ofDrawLine(touches[0].point, touch.point);
+			myfont.drawString(tags[i].distanceMap, middle.x +kCaptionMargin, middle.y+kCaptionMargin);
 		}
 	}
 }
@@ -137,7 +138,7 @@ void ofApp::drawWaveform(){
 			ofPushMatrix();
 			ofTranslate(touches[0].point);
 			ofRotateZ(touches[i].angle);
-			ofScale(touches[i].distance, 200, 1);
+			ofScale(touches[i].distance, 100, 1);
 			polyline.draw();
 			ofPopMatrix();
 		}
@@ -145,12 +146,12 @@ void ofApp::drawWaveform(){
 }
 
 void ofApp::drawCentroid(){
-	ofSetColor(125, 125, 125, 255);
+	ofSetColor(ofColor::gray);
 	ofDrawCircle(centroid, kCentroidSize);
 }
 
 void ofApp::drawNetwork(){
-	ofSetColor(125, 125, 125, 255);
+	ofSetColor(ofColor::gray);
 	ofSetLineWidth(kThinLineWidth);
 
 	ofPolyline polyline;
@@ -181,31 +182,34 @@ void ofApp::touchDown(int x, int y, int id){
 	if(id >= kMaxTouch) return;
 	touches[id].status = true;
 	touches[id].point = ofPoint(x,y);
-	sendTouchMessage(x,y,id, 1);
 }
 
 //--------------------------------------------------------------
 void ofApp::touchMoved(int x, int y, int id){
 	if(id >= kMaxTouch) return;
 	touches[id].point = ofPoint(x,y);
-	sendTouchMessage(x,y,id, 1);
 }
 
 //--------------------------------------------------------------
 void ofApp::touchUp(int x, int y, int id){
 	if(id >=kMaxTouch ) return;
 	touches[id].status = false;
-	sendTouchMessage(x,y,id, 0);
 }
 
-void ofApp::sendTouchMessage(int x, int y, int id, int status){
+void ofApp::sendTouchMessage(){
 	List list;
 	ofPoint size = ofGetWindowSize();
-	list.addFloat(id);
-	list.addFloat((float)x / size.x);
-	list.addFloat((float)y / size.y);
-	list.addFloat((float)status);
-	pd.sendMessage("fromOF", "touches", list);
+
+	for(int i = 0 ;i< kMaxTouch;i++ ){
+		auto touch = touches[i];
+		list.addFloat(i);
+		list.addFloat((float)touch.point.x / size.x);
+		list.addFloat((float)touch.point.y / size.y);
+		list.addFloat((float)touch.angle);
+		list.addFloat((float)touch.distance);
+		list.addFloat((float)touch.status);
+		pd.sendMessage("fromOF", "touches", list);
+	}
 }
 
 //--------------------------------------------------------------

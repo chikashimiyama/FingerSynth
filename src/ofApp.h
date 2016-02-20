@@ -50,12 +50,13 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		int numTouches;
 
 		void drawTouches();
+		void drawCaptions(int index, ofPoint point);
 		void drawCentroid();
 		void drawDistances();
 		void drawNetwork();
 		void drawWaveform();
 
-		void sendTouchMessage(int x, int y, int id, int status);
+		void sendTouchMessage();
 		void updateArray();
 		void print(const std::string& message);
 	public:
