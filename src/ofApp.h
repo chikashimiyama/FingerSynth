@@ -3,21 +3,9 @@
 #include "ofMain.h"
 #include "ofxAndroid.h"
 #include "ofxPd.h"
-
+#include "const.h"
+#include "Touch.h"
 using namespace pd;
-
-class Touch {
-public:
-	Touch():point(ofPoint(0,0)), path(ofPath()), distance(0), angle(0), status(false){
-		path.circle(point, 120);
-	}
-	ofPoint point;
-	ofPath path;
-	float distance;
-	float angle;
-	bool status;
-};
-
 
 class ofApp : public ofxAndroidApp,  public PdReceiver{
 
@@ -50,13 +38,15 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		int numTouches;
 
 		void drawTouches();
+		void drawInterpolations();
 		void drawCaptions(int index, ofPoint point);
 		void drawCentroid();
 		void drawDistances();
 		void drawNetwork();
 		void drawWaveform();
 
-		void sendTouchMessage();
+		void sendTouchMessages();
+		void sendTouchMessage(int index);
 		void updateArray();
 		void print(const std::string& message);
 	public:
@@ -64,6 +54,7 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		void setup();
 		void update();
 		void updateStatistics();
+		void interpolate();
 		void draw();
 		
 
