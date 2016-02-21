@@ -10,8 +10,12 @@ void ofApp::setup(){
 		OF_EXIT_APP(1);
 	}
 
+	// allocation
 	for(int i = 0; i< kMaxTouch; i++){
 		touches.push_back(Touch());
+	}
+	for(int i = 1; i < kMaxTouch; i++){
+		scopeArrays.push_back(std::vector<float>(kArraySize));
 	}
 
 	tags.push_back(Tag("1","carrier","X:freq","Y:waveshape", "-","-", ofColor::lightBlue));
@@ -31,6 +35,7 @@ void ofApp::setup(){
 	ofSetLineWidth(kNormalLineWidth);
 	myfont.load("verdana.ttf", kNormalFontSize);
 
+	ofxAccelerometer.setup();
 }
 
 void ofApp::print(const std::string& message) {
@@ -44,6 +49,8 @@ void ofApp::update(){
 	updateArray();
 	interpolate();
 	sendTouchMessages();
+	sendGeneralMessages();
+
 }
 
 void ofApp::interpolate(){
@@ -69,8 +76,25 @@ void ofApp::sendTouchMessage(int index){
 	list.addFloat((float)touch.getPoint().y / size.y);
 	list.addFloat((float)touch.angle);
 	list.addFloat((float)touch.distance);
-	list.addFloat((float)( touch.getStatus() != TouchStatus::OFF ? 1:0));
+	list.addFloat((float) touch.getStatus());
 	pd.sendMessage("fromOF", "touches", list);
+}
+
+void ofApp::sendGeneralMessages(){
+	List accelList;
+	accelList.addFloat(accel[0]);
+	accelList.addFloat(accel[1]);
+	accelList.addFloat(accel[2]);
+	pd.sendMessage("fromOF", "accels", accelList);
+
+	List centroidList;
+	centroidList.addFloat(centroid.x);
+	centroidList.addFloat(centroid.y);
+	pd.sendMessage("fromOF", "centroid", centroidList);
+
+	List stretchList;
+	stretchList.addFloat(stretch);
+	pd.sendMessage("fromOF", "stretch", stretchList);
 }
 
 void ofApp::updateStatistics(){
@@ -96,17 +120,38 @@ void ofApp::updateStatistics(){
 	y /= (float)count;
 	centroid = ofPoint(x,y);
 	numTouches = count;
+	accel = ofxAccelerometer.getForce().getNormalized();
 
+	stretch = 0.0;
+	if( touches[0].getStatus() != TouchStatus::OFF || numTouches >= 2){
+		for(int i = 1 ; i < kMaxTouch; i++){
+			auto status = touches[i].getStatus();
+			if(status != TouchStatus::OFF){
+				stretch += touches[0].getInterpolatedPoint().distance(centroid);
+			}
+		}
+		stretch /= numTouches;
+	}
+
+	//ofLog() << accel[0] << " " << accel[1] << " " << accel[2];
 }
 
 void ofApp::updateArray(){
 	pd.readArray("scope", scopeArray);
-	pd.readArray("mod1Scope", mod1ScopeArray);
-	pd.readArray("mod2Scope", mod2ScopeArray);
+	pd.readArray("mod1Scope", scopeArrays[0]);
+	pd.readArray("mod2Scope", scopeArrays[1]);
+	pd.readArray("mod3Scope", scopeArrays[2]);
+	pd.readArray("mod4Scope", scopeArrays[3]);
+
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+	if(touches[0].getStatus() == TouchStatus::OFF){
+		ofSetColor(ofColor::white);
+		myfont.drawString("touch me!", ofGetWidth()/2-100, ofGetHeight()/2-100);
+		return;
+	}
 	drawTouches();
 	drawInterpolations();
 	drawDistances();
@@ -180,32 +225,45 @@ void ofApp::drawDistances(){
 
 void ofApp::drawWaveform(){
 
-
 	ofSetLineWidth(kWaveformLineWidth);
 
-	for(int i = 1; i < 3; i++){
-		if(touches[i].getStatus() != TouchStatus::OFF){
-			ofSetColor(tags[i].color);
+	for(int i = 0; i < kMaxTouch-1; i++){
+		if(touches[i+1].getStatus() != TouchStatus::OFF){
 			std::vector<ofPoint> linePoints(kArraySize);
-			for(size_t i = 0; i < mod1ScopeArray.size()-1; ++i) {
-				linePoints.push_back(ofPoint(i * kWaveformScale, mod1ScopeArray[i]));
+			for(int j = 0; j < kArraySize; j++) {
+				linePoints.push_back(ofPoint(j * kWaveformScale , scopeArrays[i][j]));
 			}
 			ofPolyline polyline(linePoints);
 
 			ofPushMatrix();
 			ofTranslate(touches[0].getInterpolatedPoint());
-			ofRotateZ(touches[i].angle);
-			ofScale(touches[i].distance, 100, 1);
+			ofRotateZ(touches[i+1].angle);
+			ofScale(touches[i+1].distance, 100, 1);
+			ofSetColor(tags[i+1].color);
 			polyline.draw();
 			ofPopMatrix();
 		}
 	}
+
+	std::vector<ofPoint> linePoints(kArraySize);
+	float horizontalStep = (float)ofGetWidth() / (float)kArraySize;
+
+	float height = ofGetHeight();
+	ofSetColor(ofColor::darkBlue);
+	ofPolyline polyline;
+	for(int i = 0; i < kArraySize; i++) {
+		polyline.addVertex(ofPoint(i * horizontalStep , scopeArray[i] * height / 4.0 + height/2.0 ));
+	}
+	ofSetLineWidth(kThinLineWidth);
+	polyline.draw();
+
 }
 
 void ofApp::drawCentroid(){
 	ofSetColor(ofColor::gray);
 	ofNoFill();
 	ofDrawCircle(centroid, kCentroidSize);
+	myfont.drawString(std::string("stretch: ") + ofToString(stretch), centroid.x, centroid.y+kCaptionOffset);
 }
 
 void ofApp::drawNetwork(){

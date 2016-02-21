@@ -4,7 +4,7 @@
 #include <ofMain.h>
 
 enum class TouchStatus{
-	OFF, INTERPOLATED, MATCHED, RELEASE
+	OFF =0, INTERPOLATED =1, MATCHED =2, RELEASE =3
 };
 
 

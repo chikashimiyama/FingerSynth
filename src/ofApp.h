@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofxAndroid.h"
+#include "ofxAccelerometer.h"
 #include "ofxPd.h"
 #include "const.h"
 #include "Touch.h"
@@ -31,11 +32,13 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 
 		std::vector<Touch> touches;
 		std::vector<float> scopeArray;
-		std::vector<float> mod1ScopeArray;
-		std::vector<float> mod2ScopeArray;
+		std::vector<std::vector<float>> scopeArrays;
+
+
 		std::vector<Tag> tags;
 		ofPoint centroid;
 		int numTouches;
+		float stretch;
 
 		void drawTouches();
 		void drawInterpolations();
@@ -45,8 +48,10 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		void drawNetwork();
 		void drawWaveform();
 
-		void sendTouchMessages();
 		void sendTouchMessage(int index);
+		void sendTouchMessages();
+		void sendGeneralMessages();
+
 		void updateArray();
 		void print(const std::string& message);
 	public:
@@ -81,6 +86,5 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		void audioOut(float * output, int bufferSize, int nChannel);
 		ofxPd pd;
 		ofTrueTypeFont myfont;
-
-
+		ofVec3f accel;
 };
