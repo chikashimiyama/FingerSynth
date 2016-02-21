@@ -1,34 +1,44 @@
 #include "Touch.h"
 
-void Touch::interpolate(){
-	if(interpolation){
+void Touch::interpolate(const ofPoint &goal){
+	if(status == TouchStatus::INTERPOLATED){
 		ofPoint step = ofPoint( (point.x - interpolatedPoint.x) * kInterpolationRatio , (point.y - interpolatedPoint.y) * kInterpolationRatio);
 		interpolatedPoint.x += step.x;
 		interpolatedPoint.y += step.y;
 
 		if(point.distance(interpolatedPoint) < kNearEnoughThreshold){
-			interpolation = false;
+			status = TouchStatus::MATCHED;
 			interpolatedPoint = point;
+		}
+	}else if(status == TouchStatus::RELEASE){
+		ofPoint step = ofPoint( (goal.x - interpolatedPoint.x) * kInterpolationRatio , (goal.y - interpolatedPoint.y) * kInterpolationRatio);
+		interpolatedPoint.x += step.x;
+		interpolatedPoint.y += step.y;
+		if(goal.distance(interpolatedPoint) < kNearEnoughThreshold){
+			status = TouchStatus::OFF;
+			interpolatedPoint = goal;
 		}
 	}
 }
 
-void Touch::setStatus(const bool &newStatus){
+void Touch::setStatus(const TouchStatus &newStatus){
 	status = newStatus;
-	interpolatedPoint = point;
 }
 
 void Touch::setPoint(const ofPoint &newPoint){
 	point = newPoint;
 	if(point.distance(interpolatedPoint) >= kNearEnoughThreshold){
-		interpolation = true;
+		status = TouchStatus::INTERPOLATED;
 	}else{
-		interpolatedPoint = point;
-		interpolation = false;
+		setInterpolatedPoint(point);
+		status = TouchStatus::MATCHED;
 	}
 }
+void Touch::setInterpolatedPoint(const ofPoint &newPoint){
+	interpolatedPoint = newPoint;
+}
 
-bool Touch::getStatus(){
+TouchStatus Touch::getStatus(){
 	return status;
 }
 

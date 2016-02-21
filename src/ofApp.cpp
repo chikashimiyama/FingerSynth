@@ -48,13 +48,13 @@ void ofApp::update(){
 
 void ofApp::interpolate(){
 	for(int i = 0 ;i< kMaxTouch;i++ ){
-		touches[i].interpolate();
+		touches[i].interpolate(touches[0].getPoint());
 	}
 }
 
 void ofApp::sendTouchMessages(){
 	for(int i = 0 ;i< kMaxTouch;i++ ){
-		if(touches[i].getStatus()){
+		if(touches[i].getStatus() != TouchStatus::OFF){
 			sendTouchMessage(i);
 		}
 	}
@@ -69,7 +69,7 @@ void ofApp::sendTouchMessage(int index){
 	list.addFloat((float)touch.getPoint().y / size.y);
 	list.addFloat((float)touch.angle);
 	list.addFloat((float)touch.distance);
-	list.addFloat((float)touch.getStatus());
+	list.addFloat((float)( touch.getStatus() != TouchStatus::OFF ? 1:0));
 	pd.sendMessage("fromOF", "touches", list);
 }
 
@@ -78,7 +78,7 @@ void ofApp::updateStatistics(){
 	float x = 0, y = 0;
 	int count = 0;
 	for(int i = 0 ; i < kMaxTouch; i++){
-		if(touches[i].getStatus()){
+		if(touches[i].getStatus() != TouchStatus::OFF){
 			if(i > 0){
 				ofPoint pivot = touches[0].getInterpolatedPoint();
 				ofPoint target = touches[i].getInterpolatedPoint();
@@ -87,8 +87,8 @@ void ofApp::updateStatistics(){
 				touches[i].angle = atan2f(local.y, local.x) / M_PI * 180.0;
 				//ofLog() << touches[i].angle;
 			}
-			x += touches[i].getPoint().x;
-			y += touches[i].getPoint().y;
+			x += touches[i].getInterpolatedPoint().x;
+			y += touches[i].getInterpolatedPoint().y;
 			count++;
 		}
 	}
@@ -120,7 +120,7 @@ void ofApp::drawTouches(){
 
 	for(int i = 0;i < kMaxTouch; i++){
 		auto touch = touches[i];
-		if (touch.getStatus()){
+		if (touch.getStatus() == TouchStatus::MATCHED || touch.getStatus() == TouchStatus::INTERPOLATED){
 			ofSetColor(ofColor::white);
 			ofPoint touchPoint = touch.getPoint();
 			myfont.drawString(tags[i].number, touchPoint.x, touchPoint.y - kCaptionOffset * 2);
@@ -143,17 +143,16 @@ void ofApp::drawInterpolations(){
 	ofFill();
 	for(int i = 0;i < kMaxTouch; i++){
 		auto touch = touches[i];
-		if(touch.getStatus()){
-			if(touch.interpolation){
-				ofSetColor(ofColor::white);
-
-				ofDrawLine(touch.getPoint(), touch.getInterpolatedPoint());
-			}else{
-				ofSetColor(ofColor::gray);
-			}
-
-			ofDrawCircle(touch.getInterpolatedPoint(), kSmallCircleSize);
+		TouchStatus status = touch.getStatus();
+		if(status == TouchStatus::OFF){
+			continue;
+		}else if(status == TouchStatus::INTERPOLATED){
+			ofSetColor(ofColor::white);
+			ofDrawLine(touch.getPoint(), touch.getInterpolatedPoint());
+		}else{
+			ofSetColor(ofColor::gray);
 		}
+		ofDrawCircle(touch.getInterpolatedPoint(), kSmallCircleSize);
 	}
 }
 
@@ -170,7 +169,7 @@ void ofApp::drawDistances(){
 	ofSetLineWidth(kStemLineWidth);
 	for(int i = 1;i < kMaxTouch; i++){
 		auto touch = touches[i];
-		if (touch.getStatus()){
+		if (touch.getStatus() != TouchStatus::OFF){
 			ofPoint origin = touches[0].getInterpolatedPoint();
 			ofPoint middle((touch.getInterpolatedPoint().x + origin.x)/2.0,  (touch.getInterpolatedPoint().y + origin.y)/2.0 );
 			ofDrawLine(origin, touch.getInterpolatedPoint());
@@ -185,7 +184,7 @@ void ofApp::drawWaveform(){
 	ofSetLineWidth(kWaveformLineWidth);
 
 	for(int i = 1; i < 3; i++){
-		if(touches[i].getStatus()){
+		if(touches[i].getStatus() != TouchStatus::OFF){
 			ofSetColor(tags[i].color);
 			std::vector<ofPoint> linePoints(kArraySize);
 			for(size_t i = 0; i < mod1ScopeArray.size()-1; ++i) {
@@ -215,7 +214,7 @@ void ofApp::drawNetwork(){
 
 	ofPolyline polyline;
 	for(auto touch : touches){
-		if(touch.getStatus()){
+		if(touch.getStatus() != TouchStatus::OFF){
 			ofDrawLine(centroid, touch.getInterpolatedPoint());
 		}
 	}
@@ -239,8 +238,14 @@ void ofApp::windowResized(int w, int h){
 //--------------------------------------------------------------
 void ofApp::touchDown(int x, int y, int id){
 	if(id >= kMaxTouch) return;
-	touches[id].setPoint(ofPoint(x,y));
-	touches[id].setStatus(true);
+	if(id == 0){
+		touches[id].setPoint(ofPoint(x,y));
+		touches[id].setInterpolatedPoint(ofPoint(x,y));
+	}else{
+		touches[id].setPoint(ofPoint(x,y));
+		touches[id].setInterpolatedPoint(touches[0].getInterpolatedPoint());
+	}
+	touches[id].setStatus(TouchStatus::INTERPOLATED);
 }
 
 //--------------------------------------------------------------
@@ -252,11 +257,13 @@ void ofApp::touchMoved(int x, int y, int id){
 //--------------------------------------------------------------
 void ofApp::touchUp(int x, int y, int id){
 	if(id >=kMaxTouch ) return;
-	touches[id].setStatus(false);
+	if(id == 0){
+		touches[id].setStatus(TouchStatus::OFF);
+	}else{
+		touches[id].setStatus(TouchStatus::RELEASE);
+	}
 	sendTouchMessage(id);
 }
-
-
 
 //--------------------------------------------------------------
 void ofApp::touchDoubleTap(int x, int y, int id){
