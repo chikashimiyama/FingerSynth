@@ -12,15 +12,17 @@ public:
 	float distance;
 	float angle;
 	bool interpolation;
-	bool status;
 
 	void interpolate();
-
+	void setStatus(const bool &newStatus);
 	void setPoint(const ofPoint &newPoint);
+
+	bool getStatus();
 	ofPoint getPoint();
 	ofPoint getInterpolatedPoint();
 
 protected:
+	bool status;
 	ofPoint point;
 	ofPoint interpolatedPoint;
 };

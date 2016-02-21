@@ -13,6 +13,11 @@ void Touch::interpolate(){
 	}
 }
 
+void Touch::setStatus(const bool &newStatus){
+	status = newStatus;
+	interpolatedPoint = point;
+}
+
 void Touch::setPoint(const ofPoint &newPoint){
 	point = newPoint;
 	if(point.distance(interpolatedPoint) >= kNearEnoughThreshold){
@@ -23,6 +28,9 @@ void Touch::setPoint(const ofPoint &newPoint){
 	}
 }
 
+bool Touch::getStatus(){
+	return status;
+}
 
 ofPoint Touch::getPoint(){
 	return point;
