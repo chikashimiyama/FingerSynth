@@ -2,7 +2,7 @@
 #include "ofMain.h"
 
 const int kMaxTouch = 5;
-const int kCaptionOffset = 60;
+const int kCaptionOffset = 65;
 const int kCircleResolution = 50;
 
 const float kNormalLineWidth = 8;

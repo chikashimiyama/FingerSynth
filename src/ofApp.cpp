@@ -1,7 +1,6 @@
 #include "ofApp.h"
 #include "const.h"
 #include <string>
-
 //--------------------------------------------------------------
 void ofApp::setup(){
 	ofSetBackgroundColor(ofColor::black);
@@ -18,11 +17,11 @@ void ofApp::setup(){
 		scopeArrays.push_back(std::vector<float>(kArraySize));
 	}
 
-	tags.push_back(Tag("1","carrier","X:freq","Y:waveshape", "-","-", ofColor::lightBlue));
-	tags.push_back(Tag("2","modulartor1","X:freq","Y:waveshape", "-","Dist:index", ofColor::orange));
-	tags.push_back(Tag("3","modulartor2","X:freq","Y:waveshape", "-","Dist:index", ofColor::lightGreen));
-	tags.push_back(Tag("4","random-gen","X:freq","Y:waveshape", "-","-", ofColor::lightCyan));
-	tags.push_back(Tag("5","pulser","x:freq","Y:waveshape", "-","-", ofColor::lightPink));
+	tags.push_back(Tag("1","carrier","x:freq","Y:waveshape", "-","-", ofColor::lightBlue));
+	tags.push_back(Tag("2","modulator1","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::orange));
+	tags.push_back(Tag("3","modulator2","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightGreen));
+	tags.push_back(Tag("4","modulator3","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightCyan));
+	tags.push_back(Tag("5","pulser","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink));
 
 
 	pd.subscribe("toOF");
@@ -36,6 +35,21 @@ void ofApp::setup(){
 	myfont.load("verdana.ttf", kNormalFontSize);
 
 	ofxAccelerometer.setup();
+	background.addColor(ofColor::black);
+	background.addVertex(ofVec2f(0, 0));
+	background.addColor(ofColor::black);
+	background.addVertex(ofVec2f(ofGetWidth(), 0));
+	background.addColor(ofColor::black);
+	background.addVertex(ofVec2f(ofGetWidth(), ofGetHeight()));
+	background.addColor(ofColor::black);
+	background.addVertex(ofVec2f(0, ofGetHeight()));
+	background.addIndex(0);
+	background.addIndex(1);
+	background.addIndex(2);
+	background.addIndex(0);
+    background.addIndex(3);
+    background.addIndex(2);
+
 }
 
 void ofApp::print(const std::string& message) {
@@ -47,12 +61,31 @@ void ofApp::update(){
 
 	updateStatistics();
 	updateArray();
+	updateBackground();
+
 	interpolate();
+
 	sendTouchMessages();
 	sendGeneralMessages();
 
 }
 
+void ofApp::updateBackground(){
+	float right = (accel.x + 0.6) * 0.3;
+	float left = 0.6 - right;
+	float top = (accel.y + 0.6) * 0.3;
+	float bottom =  0.6 - top;
+
+	float leftTop = left * top;
+	float rightTop = right * top;
+	float rightBottom = right * bottom;
+	float leftBottom = left * bottom;
+
+	background.setColor(0, ofFloatColor(leftTop,leftTop,leftTop,1.0));
+	background.setColor(1, ofFloatColor(rightTop,rightTop,rightTop,1.0));
+	background.setColor(2, ofFloatColor(rightBottom,rightBottom,rightBottom,1.0));
+	background.setColor(3, ofFloatColor(leftBottom,leftBottom,leftBottom,1.0));
+}
 void ofApp::interpolate(){
 	for(int i = 0 ;i< kMaxTouch;i++ ){
 		touches[i].interpolate(touches[0].getPoint());
@@ -147,6 +180,8 @@ void ofApp::updateArray(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+
+	drawTilt();
 	if(touches[0].getStatus() == TouchStatus::OFF){
 		ofSetColor(ofColor::white);
 		myfont.drawString("touch me!", ofGetWidth()/2-100, ofGetHeight()/2-100);
@@ -160,27 +195,56 @@ void ofApp::draw(){
 	drawWaveform();
 }
 
+void ofApp::drawTilt(){
+	background.draw();
+	ofPoint tiltPoint((accel.x+1.0) * ofGetWidth() / 2.0,  (accel.y+1.0) * ofGetHeight() / 2.0);
+	ofNoFill();
+	ofSetColor(ofColor::darkGray);
+	ofSetLineWidth(kThinLineWidth);
+	ofDrawCircle(tiltPoint, kCircleSize);
+	ofDrawCircle(tiltPoint, kSmallCircleSize);
+	myfont.drawString("H.Tilt:filter " + ofToString(tiltPoint.x), tiltPoint.x + kCaptionOffset*2, tiltPoint.y);
+	myfont.drawString("V.Tilt:reverb " + ofToString(tiltPoint.y), tiltPoint.x, tiltPoint.y + kCaptionOffset*2);
+
+
+}
 void ofApp::drawTouches(){
 	ofNoFill();
 
 	for(int i = 0;i < kMaxTouch; i++){
 		auto touch = touches[i];
 		if (touch.getStatus() == TouchStatus::MATCHED || touch.getStatus() == TouchStatus::INTERPOLATED){
+
 			ofSetColor(ofColor::white);
 			ofPoint touchPoint = touch.getPoint();
 			myfont.drawString(tags[i].number, touchPoint.x, touchPoint.y - kCaptionOffset * 2);
+			ofSetLineWidth(kNormalLineWidth);
+			ofDrawCircle(touchPoint, kCircleSize);
 
 			drawCaptions(i, touch.getInterpolatedPoint());
-			ofSetLineWidth(kNormalLineWidth);
-			ofDrawCircle(touch.getPoint(), kCircleSize);
+
 
 			ofSetColor(ofColor::darkGray);
 			ofPoint interpolatedPoint = touch.getInterpolatedPoint();
 			ofSetLineWidth(kThinLineWidth);
 			ofDrawLine(0, interpolatedPoint.y ,ofGetWidth(), interpolatedPoint.y);
 			ofDrawLine(interpolatedPoint.x, 0 ,interpolatedPoint.x, ofGetHeight());
+
+
+			ofSetColor(ofColor::gray);
+			ofNoFill();
+			ofPolyline arc;
+			arc.arc(touch.getInterpolatedPoint(), 150, 150, touch.angle+180,180, true, 80);
+			arc.draw();
 		}
 	}
+}
+
+void ofApp::drawCaptions(int index, ofPoint center){
+	ofSetColor(ofColor::gray);
+	myfont.drawString(tags[index].function, center.x -kCaptionOffset, center.y-kCaptionOffset);
+	myfont.drawString(tags[index].xmap +"\n" + ofToString(center.x), center.x + kCaptionOffset, center.y);
+	myfont.drawString(tags[index].ymap +"\n" + ofToString(center.y), center.x, center.y + kCaptionOffset);
 }
 
 void ofApp::drawInterpolations(){
@@ -202,23 +266,19 @@ void ofApp::drawInterpolations(){
 }
 
 
-void ofApp::drawCaptions(int index, ofPoint center){
-
-	myfont.drawString(tags[index].function, center.x -kCaptionOffset, center.y-kCaptionOffset);
-	myfont.drawString(tags[index].xmap, center.x + kCaptionOffset, center.y);
-	myfont.drawString(tags[index].ymap, center.x, center.y + kCaptionOffset);
-}
 
 void ofApp::drawDistances(){
-	ofSetColor(ofColor::white);
 	ofSetLineWidth(kStemLineWidth);
 	for(int i = 1;i < kMaxTouch; i++){
 		auto touch = touches[i];
 		if (touch.getStatus() != TouchStatus::OFF){
 			ofPoint origin = touches[0].getInterpolatedPoint();
 			ofPoint middle((touch.getInterpolatedPoint().x + origin.x)/2.0,  (touch.getInterpolatedPoint().y + origin.y)/2.0 );
+			ofSetColor(ofColor::white);
 			ofDrawLine(origin, touch.getInterpolatedPoint());
-			myfont.drawString(tags[i].distanceMap, middle.x +kCaptionMargin, middle.y+kCaptionMargin);
+			ofSetColor(ofColor::gray);
+			myfont.drawString(tags[i].distanceMap + "\n" + ofToString(touches[i].distance)
+					, middle.x +kCaptionMargin, middle.y+kCaptionMargin);
 		}
 	}
 }
@@ -263,6 +323,8 @@ void ofApp::drawCentroid(){
 	ofSetColor(ofColor::gray);
 	ofNoFill();
 	ofDrawCircle(centroid, kCentroidSize);
+
+	myfont.drawString(std::string("centroid: ") + ofToString(centroid.x) + "," + ofToString(centroid.y), centroid.x, centroid.y-kCaptionOffset);
 	myfont.drawString(std::string("stretch: ") + ofToString(stretch), centroid.x, centroid.y+kCaptionOffset);
 }
 

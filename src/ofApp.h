@@ -47,12 +47,13 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		void drawDistances();
 		void drawNetwork();
 		void drawWaveform();
-
+		void drawTilt();
 		void sendTouchMessage(int index);
 		void sendTouchMessages();
 		void sendGeneralMessages();
 
 		void updateArray();
+		void updateBackground();
 		void print(const std::string& message);
 	public:
 		
@@ -87,4 +88,6 @@ class ofApp : public ofxAndroidApp,  public PdReceiver{
 		ofxPd pd;
 		ofTrueTypeFont myfont;
 		ofVec3f accel;
+
+		ofMesh background;
 };
