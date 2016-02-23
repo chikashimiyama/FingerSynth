@@ -1,6 +1,7 @@
 #include "ofApp.h"
 #include "const.h"
 #include <string>
+
 //--------------------------------------------------------------
 void ofApp::setup(){
 	ofSetBackgroundColor(ofColor::black);
@@ -10,19 +11,16 @@ void ofApp::setup(){
 	}
 
 	// allocation
+
+	myfont.load("frabk.ttf", kNormalFontSize);
+
 	for(int i = 0; i< kMaxTouch; i++){
-		touches.push_back(Touch());
+		touches.push_back(Touch(0, "1","carrier","x:freq","Y:waveshape", "-","-", ofColor::lightBlue, myfont));
+		touches.push_back(Touch(1, "2","modulator1","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::orange, myfont));
+		touches.push_back(Touch(2, "3","modulator2","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightGreen, myfont));
+		touches.push_back(Touch(3, "4","modulator3","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightCyan, myfont));
+		touches.push_back(Touch(4, "5","pulser","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink, myfont));
 	}
-	for(int i = 1; i < kMaxTouch; i++){
-		scopeArrays.push_back(std::vector<float>(kArraySize));
-	}
-
-	tags.push_back(Tag("1","carrier","x:freq","Y:waveshape", "-","-", ofColor::lightBlue));
-	tags.push_back(Tag("2","modulator1","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::orange));
-	tags.push_back(Tag("3","modulator2","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightGreen));
-	tags.push_back(Tag("4","modulator3","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightCyan));
-	tags.push_back(Tag("5","pulser","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink));
-
 
 	pd.subscribe("toOF");
 	pd.addReceiver(*this);
@@ -32,9 +30,12 @@ void ofApp::setup(){
 
 	ofSetCircleResolution(kCircleResolution);
 	ofSetLineWidth(kNormalLineWidth);
-	myfont.load("verdana.ttf", kNormalFontSize);
 
 	ofxAccelerometer.setup();
+	setupBackground();
+}
+
+void ofApp::setupBackground(){
 	background.addColor(ofColor::black);
 	background.addVertex(ofVec2f(0, 0));
 	background.addColor(ofColor::black);
@@ -49,7 +50,6 @@ void ofApp::setup(){
 	background.addIndex(0);
     background.addIndex(3);
     background.addIndex(2);
-
 }
 
 void ofApp::print(const std::string& message) {
@@ -62,10 +62,7 @@ void ofApp::update(){
 	updateStatistics();
 	updateArray();
 	updateBackground();
-
-	interpolate();
-
-	sendTouchMessages();
+	process();
 	sendGeneralMessages();
 
 }
@@ -86,31 +83,11 @@ void ofApp::updateBackground(){
 	background.setColor(2, ofFloatColor(rightBottom,rightBottom,rightBottom,1.0));
 	background.setColor(3, ofFloatColor(leftBottom,leftBottom,leftBottom,1.0));
 }
-void ofApp::interpolate(){
-	for(int i = 0 ;i< kMaxTouch;i++ ){
-		touches[i].interpolate(touches[0].getPoint());
-	}
-}
 
-void ofApp::sendTouchMessages(){
+void ofApp::process(){
 	for(int i = 0 ;i< kMaxTouch;i++ ){
-		if(touches[i].getStatus() != TouchStatus::OFF){
-			sendTouchMessage(i);
-		}
+		touches[i].process(touches[0].getPoint(), pd);
 	}
-}
-
-void ofApp::sendTouchMessage(int index){
-	ofPoint size = ofGetWindowSize();
-	auto touch = touches[index];
-	List list;
-	list.addFloat(index);
-	list.addFloat((float)touch.getPoint().x / size.x);
-	list.addFloat((float)touch.getPoint().y / size.y);
-	list.addFloat((float)touch.angle);
-	list.addFloat((float)touch.distance);
-	list.addFloat((float) touch.getStatus());
-	pd.sendMessage("fromOF", "touches", list);
 }
 
 void ofApp::sendGeneralMessages(){
@@ -140,8 +117,8 @@ void ofApp::updateStatistics(){
 				ofPoint pivot = touches[0].getInterpolatedPoint();
 				ofPoint target = touches[i].getInterpolatedPoint();
 				ofPoint local = ofPoint(target.x - pivot.x, target.y - pivot.y);
-				touches[i].distance = pivot.distance(target);
-				touches[i].angle = atan2f(local.y, local.x) / M_PI * 180.0;
+				touches[i].setDistance(pivot.distance(target));
+				touches[i].setAngle(atan2f(local.y, local.x) / M_PI * 180.0);
 				//ofLog() << touches[i].angle;
 			}
 			x += touches[i].getInterpolatedPoint().x;
@@ -171,11 +148,10 @@ void ofApp::updateStatistics(){
 
 void ofApp::updateArray(){
 	pd.readArray("scope", scopeArray);
-	pd.readArray("mod1Scope", scopeArrays[0]);
-	pd.readArray("mod2Scope", scopeArrays[1]);
-	pd.readArray("mod3Scope", scopeArrays[2]);
-	pd.readArray("mod4Scope", scopeArrays[3]);
-
+	pd.readArray("mod1Scope", touches[1].getScopeArray());
+	pd.readArray("mod2Scope", touches[2].getScopeArray());
+	pd.readArray("mod3Scope", touches[3].getScopeArray());
+	pd.readArray("mod4Scope", touches[4].getScopeArray());
 }
 
 //--------------------------------------------------------------
@@ -188,11 +164,8 @@ void ofApp::draw(){
 		return;
 	}
 	drawTouches();
-	drawInterpolations();
-	drawDistances();
-	drawNetwork();
 	drawCentroid();
-	drawWaveform();
+	drawBackgroundWaveform();
 }
 
 void ofApp::drawTilt(){
@@ -209,101 +182,12 @@ void ofApp::drawTilt(){
 
 }
 void ofApp::drawTouches(){
-	ofNoFill();
-
 	for(int i = 0;i < kMaxTouch; i++){
-		auto touch = touches[i];
-		if (touch.getStatus() == TouchStatus::MATCHED || touch.getStatus() == TouchStatus::INTERPOLATED){
-
-			ofSetColor(ofColor::white);
-			ofPoint touchPoint = touch.getPoint();
-			myfont.drawString(tags[i].number, touchPoint.x, touchPoint.y - kCaptionOffset * 2);
-			ofSetLineWidth(kNormalLineWidth);
-			ofDrawCircle(touchPoint, kCircleSize);
-
-			drawCaptions(i, touch.getInterpolatedPoint());
-
-
-			ofSetColor(ofColor::darkGray);
-			ofPoint interpolatedPoint = touch.getInterpolatedPoint();
-			ofSetLineWidth(kThinLineWidth);
-			ofDrawLine(0, interpolatedPoint.y ,ofGetWidth(), interpolatedPoint.y);
-			ofDrawLine(interpolatedPoint.x, 0 ,interpolatedPoint.x, ofGetHeight());
-
-
-			ofSetColor(ofColor::gray);
-			ofNoFill();
-			ofPolyline arc;
-			arc.arc(touch.getInterpolatedPoint(), 150, 150, touch.angle+180,180, true, 80);
-			arc.draw();
-		}
+		touches[i].draw(touches[0].getInterpolatedPoint(), centroid);
 	}
 }
 
-void ofApp::drawCaptions(int index, ofPoint center){
-	ofSetColor(ofColor::gray);
-	myfont.drawString(tags[index].function, center.x -kCaptionOffset, center.y-kCaptionOffset);
-	myfont.drawString(tags[index].xmap +"\n" + ofToString(center.x), center.x + kCaptionOffset, center.y);
-	myfont.drawString(tags[index].ymap +"\n" + ofToString(center.y), center.x, center.y + kCaptionOffset);
-}
-
-void ofApp::drawInterpolations(){
-	ofSetLineWidth(kThinLineWidth);
-	ofFill();
-	for(int i = 0;i < kMaxTouch; i++){
-		auto touch = touches[i];
-		TouchStatus status = touch.getStatus();
-		if(status == TouchStatus::OFF){
-			continue;
-		}else if(status == TouchStatus::INTERPOLATED){
-			ofSetColor(ofColor::white);
-			ofDrawLine(touch.getPoint(), touch.getInterpolatedPoint());
-		}else{
-			ofSetColor(ofColor::gray);
-		}
-		ofDrawCircle(touch.getInterpolatedPoint(), kSmallCircleSize);
-	}
-}
-
-
-
-void ofApp::drawDistances(){
-	ofSetLineWidth(kStemLineWidth);
-	for(int i = 1;i < kMaxTouch; i++){
-		auto touch = touches[i];
-		if (touch.getStatus() != TouchStatus::OFF){
-			ofPoint origin = touches[0].getInterpolatedPoint();
-			ofPoint middle((touch.getInterpolatedPoint().x + origin.x)/2.0,  (touch.getInterpolatedPoint().y + origin.y)/2.0 );
-			ofSetColor(ofColor::white);
-			ofDrawLine(origin, touch.getInterpolatedPoint());
-			ofSetColor(ofColor::gray);
-			myfont.drawString(tags[i].distanceMap + "\n" + ofToString(touches[i].distance)
-					, middle.x +kCaptionMargin, middle.y+kCaptionMargin);
-		}
-	}
-}
-
-void ofApp::drawWaveform(){
-
-	ofSetLineWidth(kWaveformLineWidth);
-
-	for(int i = 0; i < kMaxTouch-1; i++){
-		if(touches[i+1].getStatus() != TouchStatus::OFF){
-			std::vector<ofPoint> linePoints(kArraySize);
-			for(int j = 0; j < kArraySize; j++) {
-				linePoints.push_back(ofPoint(j * kWaveformScale , scopeArrays[i][j]));
-			}
-			ofPolyline polyline(linePoints);
-
-			ofPushMatrix();
-			ofTranslate(touches[0].getInterpolatedPoint());
-			ofRotateZ(touches[i+1].angle);
-			ofScale(touches[i+1].distance, 100, 1);
-			ofSetColor(tags[i+1].color);
-			polyline.draw();
-			ofPopMatrix();
-		}
-	}
+void ofApp::drawBackgroundWaveform(){
 
 	std::vector<ofPoint> linePoints(kArraySize);
 	float horizontalStep = (float)ofGetWidth() / (float)kArraySize;
@@ -326,18 +210,6 @@ void ofApp::drawCentroid(){
 
 	myfont.drawString(std::string("centroid: ") + ofToString(centroid.x) + "," + ofToString(centroid.y), centroid.x, centroid.y-kCaptionOffset);
 	myfont.drawString(std::string("stretch: ") + ofToString(stretch), centroid.x, centroid.y+kCaptionOffset);
-}
-
-void ofApp::drawNetwork(){
-	ofSetColor(ofColor::gray);
-	ofSetLineWidth(kThinLineWidth);
-
-	ofPolyline polyline;
-	for(auto touch : touches){
-		if(touch.getStatus() != TouchStatus::OFF){
-			ofDrawLine(centroid, touch.getInterpolatedPoint());
-		}
-	}
 }
 
 //--------------------------------------------------------------
@@ -382,7 +254,7 @@ void ofApp::touchUp(int x, int y, int id){
 	}else{
 		touches[id].setStatus(TouchStatus::RELEASE);
 	}
-	sendTouchMessage(id);
+	touches[id].sendMessage(pd);
 }
 
 //--------------------------------------------------------------

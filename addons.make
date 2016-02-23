@@ -1,3 +1,5 @@
 ofxAndroid
 ofxAccelerometer
 ofxPd
+ofxFakeMotionBlur
+ofxAnimatable

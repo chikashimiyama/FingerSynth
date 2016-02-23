@@ -22,3 +22,4 @@ const int kArraySize = 512;
 const float kWaveformScale = 1.0/kArraySize;
 const float kCaptionMargin = 18;
 const float kNearEnoughThreshold = 2.0;
+const float kArcRadius = 150;
