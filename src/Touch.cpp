@@ -4,6 +4,7 @@
 void Touch::process(const ofPoint &goal, ofxPd &pd){
 	interpolate(goal);
 	sendMessage(pd);
+	rippleSize.update(kRippleAnimationStep);
 }
 
 void Touch::interpolate(const ofPoint &goal){
@@ -50,26 +51,29 @@ void Touch::setPoint(const ofPoint &newPoint){
 }
 
 void Touch::rippleIn(){
-	rippleSize.reset(1.0);
+	rippleSize.reset(0.0);
+	rippleSize.animateFromTo(kRippleSize, 0.0);
 }
 
 void Touch::rippleOut(){
-
+	rippleSize.reset(0.0);
+	rippleSize.animateFromTo(0.0,kRippleSize);
 }
 
 void Touch::draw(const ofPoint &pivot, const ofPoint &centroid){
-	if (status == TouchStatus::MATCHED || status == TouchStatus::INTERPOLATED){
-		drawFingerIndex();
+	if (status == TouchStatus::OFF)return;
+	if (status != TouchStatus::RELEASE){
 		drawTouchCircle();
-		drawInterpolatedCircle();
-		drawXYLines();
-		drawCaptions();
-		drawArc();
-		drawNetwork(centroid);
-		if(number != "1"){
-			drawDistance(pivot);
-			drawWaveform(pivot);
-		}
+	}
+	drawInterpolatedCircle();
+	drawXYLines();
+	drawCaptions();
+	drawArc();
+	drawNetwork(centroid);
+	drawRipple();
+	if(index != 0){
+		drawDistance(pivot);
+		drawWaveform(pivot);
 	}
 }
 
@@ -81,13 +85,9 @@ void Touch::drawArc(){
 	arc.draw();
 }
 
-void Touch::drawFingerIndex(){
-	ofSetColor(ofColor::white);
-	font.drawString(number, point.x, point.y - kCaptionOffset * 2);
-}
-
 void Touch::drawTouchCircle(){
 	ofNoFill();
+	ofSetColor(ofColor::white);
 	ofSetLineWidth(kNormalLineWidth);
 	ofDrawCircle(point, kCircleSize);
 }
@@ -108,14 +108,10 @@ void Touch::drawInterpolatedCircle(){
 
 void Touch::drawDistance(const ofPoint& pivot){
 	ofSetLineWidth(kStemLineWidth);
-	if (status != TouchStatus::OFF){
-
-		ofPoint middle((interpolatedPoint.x + pivot.x)/2.0, (interpolatedPoint.y + pivot.y)/2.0 );
-		ofSetColor(ofColor::white);
-		ofDrawLine(pivot, interpolatedPoint);
-		ofSetColor(ofColor::gray);
-		font.drawString(distanceMap + "\n" + ofToString(distance), middle.x +kCaptionMargin, middle.y+kCaptionMargin);
-	}
+	middle = ofPoint ((interpolatedPoint.x + pivot.x)/2.0, (interpolatedPoint.y + pivot.y)/2.0 );
+	ofSetColor(ofColor::white);
+	ofDrawLine(pivot, interpolatedPoint);
+	ofSetColor(ofColor::gray);
 }
 
 void Touch::drawXYLines(){
@@ -154,9 +150,30 @@ void Touch::drawNetwork(const ofPoint &centroid){
 	}
 }
 
+void Touch::drawRipple(){
+	if(!rippleSize.isAnimating()) return;
+	ofNoFill();
+	ofSetColor(ofColor::darkGray);
+	ofSetLineWidth(kThinLineWidth);
+	ofDrawCircle(point, kCircleSize * rippleSize.getCurrentValue());
+
+}
+
 void Touch::drawCaptions(){
+
+	if(status != TouchStatus::RELEASE){
+		ofSetColor(ofColor::white);
+		font.drawString(number, point.x, point.y - kCaptionOffset * 2);
+	}
+
 	ofSetColor(ofColor::gray);
 	font.drawString(function, interpolatedPoint.x -kCaptionOffset, interpolatedPoint.y-kCaptionOffset);
 	font.drawString(xmap +"\n" + ofToString(interpolatedPoint.x), interpolatedPoint.x + kCaptionOffset, interpolatedPoint.y);
 	font.drawString(ymap +"\n" + ofToString(interpolatedPoint.y), interpolatedPoint.x, interpolatedPoint.y + kCaptionOffset);
+
+	if(index != 0 ){
+		font.drawString(distanceMap + "\n" + ofToString(distance), middle.x +kCaptionMargin, middle.y+kCaptionMargin);
+	}
 }
+
+

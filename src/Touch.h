@@ -26,13 +26,13 @@ protected:
 	TouchStatus status;
 	ofPoint point;
 	ofPoint interpolatedPoint;
+	ofPoint middle;
 	ofxAnimatableFloat rippleSize;
 	const ofTrueTypeFont &font;
 	std::vector<float> scopeArray;
 
 	void interpolate(const ofPoint &goal);
 
-	void drawFingerIndex();
 	void drawTouchCircle();
 	void drawInterpolatedCircle();
 	void drawXYLines();
@@ -41,6 +41,7 @@ protected:
 	void drawDistance(const ofPoint &pivot);
 	void drawWaveform(const ofPoint &pivot);
 	void drawNetwork(const ofPoint &centroid);
+	void drawRipple();
 
 public:
 	Touch(const int &index, const string &number, const string &function, const string &xmap, const string &ymap,

@@ -238,6 +238,7 @@ void ofApp::touchDown(int x, int y, int id){
 		touches[id].setInterpolatedPoint(touches[0].getInterpolatedPoint());
 	}
 	touches[id].setStatus(TouchStatus::INTERPOLATED);
+	touches[id].rippleIn();
 }
 
 //--------------------------------------------------------------
@@ -255,6 +256,7 @@ void ofApp::touchUp(int x, int y, int id){
 		touches[id].setStatus(TouchStatus::RELEASE);
 	}
 	touches[id].sendMessage(pd);
+	touches[id].rippleOut();
 }
 
 //--------------------------------------------------------------
