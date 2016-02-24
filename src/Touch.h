@@ -31,7 +31,7 @@ protected:
 	const ofTrueTypeFont &font;
 	std::vector<float> scopeArray;
 
-	void interpolate(const ofPoint &goal);
+	void interpolate(const ofPoint &goal, const ofVec3f &force);
 
 	void drawTouchCircle();
 	void drawInterpolatedCircle();
@@ -69,7 +69,7 @@ public:
 	}
 
 
-	void process(const ofPoint &goal, ofxPd &pd);
+	void process(const ofPoint &goal, ofxPd &pd, const ofVec3f &force);
 	void setStatus(const TouchStatus &newStatus){status = newStatus;}
 	void setPoint(const ofPoint &newPoint);
 	void setAngle(const float& newAngle){angle = newAngle;}

@@ -19,9 +19,10 @@ void ofApp::setup(){
 		touches.push_back(Touch(1, "2","modulator1","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::orange, myfont));
 		touches.push_back(Touch(2, "3","modulator2","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightGreen, myfont));
 		touches.push_back(Touch(3, "4","modulator3","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightCyan, myfont));
-		touches.push_back(Touch(4, "5","pulser","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink, myfont));
+		touches.push_back(Touch(4, "5","freq_shifter","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink, myfont));
 	}
 
+	pd.addToSearchPath("pd");
 	pd.subscribe("toOF");
 	pd.addReceiver(*this);
 
@@ -70,8 +71,8 @@ void ofApp::update(){
 void ofApp::updateBackground(){
 	float right = (accel.x + 0.6) * 0.3;
 	float left = 0.6 - right;
-	float top = (accel.y + 0.6) * 0.3;
-	float bottom =  0.6 - top;
+	float bottom = (accel.y + 0.6) * 0.3;
+	float top =  0.6 - bottom;
 
 	float leftTop = left * top;
 	float rightTop = right * top;
@@ -86,25 +87,28 @@ void ofApp::updateBackground(){
 
 void ofApp::process(){
 	for(int i = 0 ;i< kMaxTouch;i++ ){
-		touches[i].process(touches[0].getPoint(), pd);
+		touches[i].process(touches[0].getPoint(), pd, accel);
 	}
 }
 
 void ofApp::sendGeneralMessages(){
 	List accelList;
+	accelList.addSymbol("accels");
 	accelList.addFloat(accel[0]);
 	accelList.addFloat(accel[1]);
 	accelList.addFloat(accel[2]);
-	pd.sendMessage("fromOF", "accels", accelList);
+	pd.sendMessage("fromOF", "general", accelList);
 
 	List centroidList;
+	centroidList.addSymbol("centroid");
 	centroidList.addFloat(centroid.x);
 	centroidList.addFloat(centroid.y);
-	pd.sendMessage("fromOF", "centroid", centroidList);
+	pd.sendMessage("fromOF", "general", centroidList);
 
 	List stretchList;
+	stretchList.addSymbol("stretch");
 	stretchList.addFloat(stretch);
-	pd.sendMessage("fromOF", "stretch", stretchList);
+	pd.sendMessage("fromOF", "general", stretchList);
 }
 
 void ofApp::updateStatistics(){
@@ -131,6 +135,7 @@ void ofApp::updateStatistics(){
 	centroid = ofPoint(x,y);
 	numTouches = count;
 	accel = ofxAccelerometer.getForce().getNormalized();
+	accel.y *= -1.0;
 
 	stretch = 0.0;
 	if( touches[0].getStatus() != TouchStatus::OFF || numTouches >= 2){
@@ -158,6 +163,7 @@ void ofApp::updateArray(){
 void ofApp::draw(){
 
 	drawTilt();
+	drawBackgroundWaveform();
 	if(touches[0].getStatus() == TouchStatus::OFF){
 		ofSetColor(ofColor::white);
 		myfont.drawString("touch me!", ofGetWidth()/2-100, ofGetHeight()/2-100);
@@ -165,22 +171,20 @@ void ofApp::draw(){
 	}
 	drawTouches();
 	drawCentroid();
-	drawBackgroundWaveform();
 }
 
 void ofApp::drawTilt(){
 	background.draw();
-	ofPoint tiltPoint((accel.x+1.0) * ofGetWidth() / 2.0,  (accel.y+1.0) * ofGetHeight() / 2.0);
-	ofNoFill();
-	ofSetColor(ofColor::darkGray);
-	ofSetLineWidth(kThinLineWidth);
-	ofDrawCircle(tiltPoint, kCircleSize);
-	ofDrawCircle(tiltPoint, kSmallCircleSize);
-	myfont.drawString("H.Tilt:filter " + ofToString(tiltPoint.x), tiltPoint.x + kCaptionOffset*2, tiltPoint.y);
-	myfont.drawString("V.Tilt:reverb " + ofToString(tiltPoint.y), tiltPoint.x, tiltPoint.y + kCaptionOffset*2);
-
-
+//	ofPoint tiltPoint((accel.x+1.0) * ofGetWidth() / 2.0,  (accel.y+1.0) * ofGetHeight() / 2.0);
+//	ofNoFill();
+//	ofSetColor(ofColor::darkGray);
+//	ofSetLineWidth(kThinLineWidth);
+//	ofDrawCircle(tiltPoint, kCircleSize);
+//	ofDrawCircle(tiltPoint, kSmallCircleSize);
+//	myfont.drawString("H.Tilt:filter " + ofToString(tiltPoint.x), tiltPoint.x + kCaptionOffset*2, tiltPoint.y);
+//	myfont.drawString("V.Tilt:reverb " + ofToString(tiltPoint.y), tiltPoint.x, tiltPoint.y + kCaptionOffset*2);
 }
+
 void ofApp::drawTouches(){
 	for(int i = 0;i < kMaxTouch; i++){
 		touches[i].draw(touches[0].getInterpolatedPoint(), centroid);
@@ -188,7 +192,6 @@ void ofApp::drawTouches(){
 }
 
 void ofApp::drawBackgroundWaveform(){
-
 	std::vector<ofPoint> linePoints(kArraySize);
 	float horizontalStep = (float)ofGetWidth() / (float)kArraySize;
 
@@ -200,14 +203,12 @@ void ofApp::drawBackgroundWaveform(){
 	}
 	ofSetLineWidth(kThinLineWidth);
 	polyline.draw();
-
 }
 
 void ofApp::drawCentroid(){
 	ofSetColor(ofColor::gray);
 	ofNoFill();
 	ofDrawCircle(centroid, kCentroidSize);
-
 	myfont.drawString(std::string("centroid: ") + ofToString(centroid.x) + "," + ofToString(centroid.y), centroid.x, centroid.y-kCaptionOffset);
 	myfont.drawString(std::string("stretch: ") + ofToString(stretch), centroid.x, centroid.y+kCaptionOffset);
 }

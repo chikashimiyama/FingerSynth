@@ -14,6 +14,7 @@ const float kSmallCircleSize = 50;
 const float kCentroidSize = 150;
 const float kNormalFontSize = 18;
 const float kInterpolationRatio = 0.1;
+const float kForceInfluence = 0.65;
 const float kReleaseRation = 0.08;
 const int kSampleRate = 44100;
 const int kBlockSize = 512;

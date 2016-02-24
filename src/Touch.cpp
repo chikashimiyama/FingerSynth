@@ -1,17 +1,31 @@
 #include "Touch.h"
 #include "ofxPd.h"
 
-void Touch::process(const ofPoint &goal, ofxPd &pd){
-	interpolate(goal);
+void Touch::process(const ofPoint &goal, ofxPd &pd, const ofPoint &force){
+	interpolate(goal, force);
 	sendMessage(pd);
 	rippleSize.update(kRippleAnimationStep);
 }
 
-void Touch::interpolate(const ofPoint &goal){
+void Touch::interpolate(const ofPoint &goal, const ofVec3f &force){
 	if(status == TouchStatus::INTERPOLATED){
 			ofPoint step = ofPoint( (point.x - interpolatedPoint.x) * kInterpolationRatio , (point.y - interpolatedPoint.y) * kInterpolationRatio);
-			interpolatedPoint.x += step.x;
-			interpolatedPoint.y += step.y;
+			ofPoint forceFactor = ofPoint(step.x * kForceInfluence * fabs(force.x), step.y * kForceInfluence * fabs(force.y));
+			ofPoint forceAffectedStep;
+			if((force.x > 0.0 && step.x > 0.0) || (force.x < 0.0 && step.x < 0.0)){
+				forceAffectedStep.x = step.x + forceFactor.x;
+			}else{
+				forceAffectedStep.x = step.x - forceFactor.x;
+			}
+
+			if((force.y > 0.0 && step.y > 0.0) || (force.y < 0.0 && step.y < 0.0)){
+				forceAffectedStep.y = step.y + forceFactor.y;
+			}else{
+				forceAffectedStep.y = step.y - forceFactor.y;
+			}
+
+			interpolatedPoint.x += forceAffectedStep.x;
+			interpolatedPoint.y += forceAffectedStep.y;
 
 			if(point.distance(interpolatedPoint) < kNearEnoughThreshold){
 				status = TouchStatus::MATCHED;
@@ -19,8 +33,21 @@ void Touch::interpolate(const ofPoint &goal){
 			}
 		}else if(status == TouchStatus::RELEASE){
 			ofPoint step = ofPoint( (goal.x - interpolatedPoint.x) * kInterpolationRatio , (goal.y - interpolatedPoint.y) * kInterpolationRatio);
-			interpolatedPoint.x += step.x;
-			interpolatedPoint.y += step.y;
+			ofPoint forceFactor = ofPoint(step.x * kForceInfluence * fabs(force.x), step.y * kForceInfluence * fabs(force.y));
+			ofPoint forceAffectedStep;
+			if((force.x > 0.0 && step.x > 0.0) || (force.x < 0.0 && step.x < 0.0)){
+				forceAffectedStep.x = step.x + forceFactor.x;
+			}else{
+				forceAffectedStep.x = step.x - forceFactor.x;
+			}
+
+			if((force.y > 0.0 && step.y > 0.0) || (force.y < 0.0 && step.y < 0.0)){
+				forceAffectedStep.y = step.y + forceFactor.y;
+			}else{
+				forceAffectedStep.y = step.y - forceFactor.y;
+			}
+			interpolatedPoint.x += forceAffectedStep.x;
+			interpolatedPoint.y += forceAffectedStep.y;
 			if(goal.distance(interpolatedPoint) < kNearEnoughThreshold){
 				status = TouchStatus::OFF;
 				interpolatedPoint = goal;
@@ -81,7 +108,11 @@ void Touch::drawArc(){
 	ofNoFill();
 	ofSetColor(ofColor::gray);
 	ofPolyline arc;
-	arc.arc(interpolatedPoint, kArcRadius, kArcRadius, angle+180,180, true, 80);
+	if(angle < 0 ){
+		arc.arc(interpolatedPoint, kArcRadius, kArcRadius, angle+180,180, true, 80);
+	}else{
+		arc.arc(interpolatedPoint, kArcRadius, kArcRadius, -180,-180+angle, true, 80);
+	}
 	arc.draw();
 }
 
@@ -173,6 +204,7 @@ void Touch::drawCaptions(){
 
 	if(index != 0 ){
 		font.drawString(distanceMap + "\n" + ofToString(distance), middle.x +kCaptionMargin, middle.y+kCaptionMargin);
+		font.drawString(angleMap + "\n" + ofToString(abs(angle)), interpolatedPoint.x, interpolatedPoint.y + kArcRadius + kCaptionMargin);
 	}
 }
 
