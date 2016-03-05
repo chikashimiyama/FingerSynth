@@ -19,7 +19,7 @@ void ofApp::setup(){
 		touches.push_back(Touch(1, "2","modulator1","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::orange, myfont));
 		touches.push_back(Touch(2, "3","modulator2","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightGreen, myfont));
 		touches.push_back(Touch(3, "4","modulator3","x:freq","y:waveshape", "angle:distortion","distance:depth", ofColor::lightCyan, myfont));
-		touches.push_back(Touch(4, "5","freq_shifter","x:freq","Y:waveshape", "angle:distortion","distance:depth", ofColor::lightPink, myfont));
+		touches.push_back(Touch(4, "5","freq_shifter","x:freq","Y:depth", "angle:-","distance:volume", ofColor::lightPink, myfont));
 	}
 
 	pd.addToSearchPath("pd");
@@ -251,11 +251,7 @@ void ofApp::touchMoved(int x, int y, int id){
 //--------------------------------------------------------------
 void ofApp::touchUp(int x, int y, int id){
 	if(id >=kMaxTouch ) return;
-	if(id == 0){
-		touches[id].setStatus(TouchStatus::OFF);
-	}else{
-		touches[id].setStatus(TouchStatus::RELEASE);
-	}
+	touches[id].setStatus(TouchStatus::RELEASE);
 	touches[id].sendMessage(pd);
 	touches[id].rippleOut();
 }
