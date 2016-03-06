@@ -3,6 +3,7 @@ gen
 obj
 libs
 jni
+res
 settings.gradle
 .project
 build.gradle
